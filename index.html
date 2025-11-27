@@ -35,15 +35,17 @@ const TOTAL_BITS = GRID_WIDTH * GRID_HEIGHT;
 const BLACK = '\u2B1B';
 const WHITE = '\u2B1C';
 
+// Map coordinates to first 24 bits, ignore bottom-right
 function coordsToBinary(coords) {
-    let bits = Array(TOTAL_BITS).fill('0');
+    let bits = Array(24).fill('0');
     coords.forEach(([x,y])=>{
         x = Number(x); y = Number(y);
-        if(x>=0 && x<GRID_WIDTH && y>=0 && y<GRID_HEIGHT){
-            bits[y*GRID_WIDTH + x]='1';
+        let index = y*5 + x;
+        if(index >=0 && index < 24){
+            bits[index]='1';
         }
     });
-    return bits.join(''); // 25 bits
+    return bits.join('');
 }
 
 function encodeGrid(){
@@ -58,7 +60,7 @@ function encodeGrid(){
     }
 
     let bits = coordsToBinary(coordPairs);
-    let value24 = parseInt(bits.slice(0,24),2);
+    let value24 = parseInt(bits,2);
     let hi = Math.floor(value24/BASE);
     let lo = value24 % BASE;
     let encodedChars = String.fromCharCode(START+hi)+String.fromCharCode(START+lo);
@@ -76,13 +78,14 @@ function decodeChars(){
     let value24 = hi*BASE + lo;
     let bits = value24.toString(2).padStart(24,'0');
 
+    // bottom-right square (index 24) determined by number logic
     let onesCount = (bits.match(/1/g)||[]).length;
     bits += ((onesCount===7 && number===8)||(onesCount===8 && number===9)) ? '1' : '0';
 
     let grid = '';
-    for(let y=0;y<GRID_HEIGHT;y++){
-        for(let x=0;x<GRID_WIDTH;x++){
-            let index = y*GRID_WIDTH + x;
+    for(let y=0;y<5;y++){
+        for(let x=0;x<5;x++){
+            let index = y*5 + x;
             grid += (bits[index]==='1'?BLACK:WHITE);
         }
         grid += '\n';
