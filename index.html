@@ -16,7 +16,7 @@ pre { font-size: 24px; line-height: 1.2em; }
 <label>Enter coordinates (x,y) separated by spaces, e.g., 0,0 4,0 3,1 0,2 1,2 0,3 2,3 1,4 2,4:</label><br>
 <input type="text" id="coordInput" placeholder="0,0 4,0 3,1 0,2 1,2 0,3 2,3 1,4 2,4" size="50"><br>
 <button onclick="encodeGrid()">Encode</button>
-<p>Encoded Characters: <span id="encodedOutput"></span></p>
+<p>Encoded Characters: <span id="encodedOutput"></span> <button onclick="copyEncoded()">Copy</button></p>
 
 <label>Enter 2 CJK characters:</label><br>
 <input type="text" id="charInput" maxlength="2"><br>
@@ -39,46 +39,45 @@ function coordsToBinary(coords) {
     let bits = Array(TOTAL_BITS).fill('0');
     coords.forEach(([x,y])=>{
         x = Number(x); y = Number(y);
-        if(x >=0 && x < GRID_WIDTH && y >=0 && y < GRID_HEIGHT){
-            let index = y*GRID_WIDTH + x;
-            bits[index] = '1';
+        if(x>=0 && x<GRID_WIDTH && y>=0 && y<GRID_HEIGHT){
+            bits[y*GRID_WIDTH + x]='1';
         }
     });
-    return bits.join('');
+    return bits.join(''); // 25 bits
 }
 
-function encodeGrid() {
+function encodeGrid(){
     let input = document.getElementById('coordInput').value.trim();
     if(!input) { alert('Enter coordinates'); return; }
 
-    let coordPairs = input.split(/\s+/).map(s => s.split(','));
+    let coordPairs = input.split(/\s+/).map(s=>s.split(','));
     for(let i=0;i<coordPairs.length;i++){
         if(coordPairs[i].length!==2 || isNaN(coordPairs[i][0]) || isNaN(coordPairs[i][1])){
             alert('Invalid coordinate: ' + coordPairs[i].join(',')); return;
         }
     }
 
-    let bits = coordsToBinary(coordPairs).slice(0,24); // first 24 bits
-    let value = parseInt(bits,2);
-    let hi = Math.floor(value/BASE);
-    let lo = value % BASE;
+    let bits = coordsToBinary(coordPairs);
+    let value24 = parseInt(bits.slice(0,24),2);
+    let hi = Math.floor(value24/BASE);
+    let lo = value24 % BASE;
     let encodedChars = String.fromCharCode(START+hi)+String.fromCharCode(START+lo);
     document.getElementById('encodedOutput').innerText = encodedChars;
 }
 
-function decodeChars() {
+function decodeChars(){
     let chars = document.getElementById('charInput').value;
     let number = parseInt(document.getElementById('numberInput').value);
-    if(chars.length!==2) { alert('Enter exactly 2 characters'); return; }
-    if(isNaN(number)||(number!==8&&number!==9)) { alert('Enter number 8 or 9'); return; }
+    if(chars.length!==2){ alert('Enter exactly 2 characters'); return; }
+    if(isNaN(number)||(number!==8&&number!==9)){ alert('Enter number 8 or 9'); return; }
 
     let hi = chars.charCodeAt(0)-START;
     let lo = chars.charCodeAt(1)-START;
-    let value = hi*BASE+lo;
-    let bits = value.toString(2).padStart(24,'0');
+    let value24 = hi*BASE + lo;
+    let bits = value24.toString(2).padStart(24,'0');
 
     let onesCount = (bits.match(/1/g)||[]).length;
-    bits += ((onesCount===7 && number===8) || (onesCount===8 && number===9)) ? '1' : '0';
+    bits += ((onesCount===7 && number===8)||(onesCount===8 && number===9)) ? '1' : '0';
 
     let grid = '';
     for(let y=0;y<GRID_HEIGHT;y++){
@@ -89,6 +88,14 @@ function decodeChars() {
         grid += '\n';
     }
     document.getElementById('decodedOutput').innerText = grid;
+}
+
+function copyEncoded(){
+    let span = document.getElementById('encodedOutput');
+    let text = span.innerText;
+    navigator.clipboard.writeText(text).then(()=>{
+        alert('Copied: ' + text);
+    });
 }
 </script>
 </body>
