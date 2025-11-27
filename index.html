@@ -12,8 +12,8 @@ span { font-size: 24px; line-height: 1.2em; }
 <body>
 <h1>Codenames 5x5 Grid Encoder</h1>
 
-<label>Enter coordinates (x,y) separated by spaces, e.g., 0,0 2,1 4,4:</label><br>
-<input type="text" id="coordInput" placeholder="0,0 2,1 4,4"><br>
+<label>Enter coordinates (x,y) separated by spaces, e.g., 0,0 4,0 3,1 ... :</label><br>
+<input type="text" id="coordInput" placeholder="0,0 4,0 3,1 0,2 1,2 0,3 2,3 1,4 2,4" size="50"><br>
 <button onclick="encodeGrid()">Encode</button>
 <p>Encoded Characters: <span id="encodedOutput"></span></p>
 
@@ -37,17 +37,31 @@ const WHITE = '\u2B1C';
 function coordsToBinary(coords) {
     let bits = Array(TOTAL_BITS).fill('0');
     coords.forEach(pair => {
-        let [x,y] = pair;
-        let index = y*GRID_WIDTH + x;
-        if(index<24) bits[index] = '1';
+        let x = Number(pair[0]);
+        let y = Number(pair[1]);
+        if(x >=0 && x < GRID_WIDTH && y >=0 && y < GRID_HEIGHT){
+            let index = y*GRID_WIDTH + x;
+            if(index < 24) bits[index] = '1';
+        }
     });
     return bits.join('');
 }
 
 function encodeGrid() {
-    let input = document.getElementById('coordInput').value;
-    if(!input) { alert('Enter coordinates'); return; }
-    let coordPairs = input.split(' ').map(s => s.split(',').map(Number));
+    let input = document.getElementById('coordInput').value.trim();
+    if(!input) { 
+        alert('Enter coordinates'); 
+        return; 
+    }
+
+    let coordPairs = input.split(/\s+/).map(s => s.split(','));
+    for(let i=0;i<coordPairs.length;i++){
+        if(coordPairs[i].length !== 2 || isNaN(coordPairs[i][0]) || isNaN(coordPairs[i][1])){
+            alert('Invalid coordinate format: ' + coordPairs[i].join(','));
+            return;
+        }
+    }
+
     let bitstring = coordsToBinary(coordPairs);
     let value = parseInt(bitstring,2);
     let hi = Math.floor(value/BASE);
@@ -77,8 +91,7 @@ function decodeChars() {
             let index=y*GRID_WIDTH+x;
             grid += (bitstring[index]==='1'?BLACK:WHITE);
         }
-        grid+='
-';
+        grid+='\n';
     }
     document.getElementById('decodedOutput').innerText=grid;
 }
