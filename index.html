@@ -32,9 +32,9 @@ const GRID_HEIGHT = 5;
 const BLACK = '\u2B1B';
 const WHITE = '\u2B1C';
 
-// Map coordinates to 24 bits, ignoring bottom-right (4,4)
-function coordsToBinary(coords) {
-    let bits = Array(24).fill('0'); // first 24 bits only
+// Convert coordinates to 24-bit string, ignoring bottom-right (4,4)
+function coordsToBits(coords){
+    let bits = Array(24).fill('0');
     coords.forEach(([x,y])=>{
         x = Number(x);
         y = Number(y);
@@ -44,9 +44,10 @@ function coordsToBinary(coords) {
             bits[index]='1';
         }
     });
-    return bits.join('');
+    return bits;
 }
 
+// Encode coordinates to 2 CJK characters
 function encodeGrid(){
     let input = document.getElementById('coordInput').value.trim();
     if(!input){ alert('Enter coordinates'); return; }
@@ -57,32 +58,40 @@ function encodeGrid(){
         }
     }
 
-    let bits = coordsToBinary(coordPairs);
-    let value24 = parseInt(bits,2);
+    let bits = coordsToBits(coordPairs);
+
+    // little-endian: bit 0 = index 0, bit 23 = index 23
+    let value24 = 0;
+    for(let i=0;i<24;i++){
+        if(bits[i]==='1') value24 += (1<<i);
+    }
+
     let hi = Math.floor(value24 / BASE);
     let lo = value24 % BASE;
     let encodedChars = String.fromCharCode(START+hi) + String.fromCharCode(START+lo);
     document.getElementById('encodedOutput').innerText = encodedChars;
 
-    // Store count of coordinates for bottom-right logic
+    // Store number of coordinates for bottom-right logic
     window.lastCoordCount = coordPairs.length;
 }
 
+// Decode 2 CJK characters to 5x5 emoji grid
 function decodeGrid(){
     let chars = document.getElementById('charInput').value;
     if(chars.length!==2){ alert('Enter exactly 2 characters'); return; }
 
     let hi = chars.charCodeAt(0)-START;
     let lo = chars.charCodeAt(1)-START;
+    let value24 = hi*BASE + lo;
 
-    // Treat each character as 12 bits to preserve exact alignment
-    let hiBits = hi.toString(2).padStart(12,'0');
-    let loBits = lo.toString(2).padStart(12,'0');
-    let bits = hiBits + loBits; // exact 24 bits
+    let bits = [];
+    for(let i=0;i<24;i++){
+        bits.push((value24 & (1<<i)) ? '1' : '0');
+    }
 
-    // Bottom-right logic: keep as before (you can customize)
+    // Bottom-right square: black if fewer coordinates than originally input
     let bottomRight = (window.lastCoordCount < 25) ? '1' : '0';
-    bits += bottomRight;
+    bits.push(bottomRight);
 
     let grid='';
     for(let y=0;y<GRID_HEIGHT;y++){
@@ -95,6 +104,7 @@ function decodeGrid(){
     document.getElementById('decodedOutput').innerText = grid;
 }
 
+// Copy encoded characters to clipboard
 function copyEncoded(){
     let span = document.getElementById('encodedOutput');
     let text = span.innerText;
