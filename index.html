@@ -15,14 +15,16 @@ pre { font-size: 24px; line-height: 1.2em; }
 
 <label>Enter coordinates (x,y) separated by spaces, e.g., 0,0 4,0 3,1 0,2 1,2 0,3 2,3 1,4 2,4:</label><br>
 <input type="text" id="coordInput" placeholder="0,0 4,0 3,1 0,2 1,2 0,3 2,3 1,4 2,4" size="50"><br>
+<label>Enter expected number of coordinates:</label><br>
+<input type="number" id="expectedCount" min="1" max="25" value="25"><br>
 <button onclick="encodeGrid()">Encode</button>
 <p>Encoded Characters: <span id="encodedOutput"></span> <button onclick="copyEncoded()">Copy</button></p>
 
-<label>Enter 2 CJK characters:</label><br>
+<label>Enter 2 CJK characters (from encoding):</label><br>
 <input type="text" id="charInput" maxlength="2"><br>
-<label>Enter number (8 or 9):</label><br>
-<input type="number" id="numberInput" min="0" max="9"><br>
-<button onclick="decodeChars()">Decode</button>
+<label>Enter number of coordinates decoded:</label><br>
+<input type="number" id="decodedCount" min="0" max="25" value="0"><br>
+<button onclick="decodeGrid()">Decode</button>
 <p>Decoded Grid:</p>
 <pre id="decodedOutput"></pre>
 
@@ -31,16 +33,17 @@ const BASE = 4096;
 const START = 0x4E00;
 const GRID_WIDTH = 5;
 const GRID_HEIGHT = 5;
-const TOTAL_BITS = GRID_WIDTH * GRID_HEIGHT;
 const BLACK = '\u2B1B';
 const WHITE = '\u2B1C';
 
-// Map coordinates to first 24 bits, ignore bottom-right
+// Map coordinates to 24 bits, ignoring bottom-right (4,4)
 function coordsToBinary(coords) {
-    let bits = Array(24).fill('0');
+    let bits = Array(24).fill('0'); // first 24 bits only
     coords.forEach(([x,y])=>{
-        x = Number(x); y = Number(y);
-        let index = y*5 + x;
+        x = Number(x);
+        y = Number(y);
+        if(x===4 && y===4) return; // ignore bottom-right
+        let index = y*GRID_WIDTH + x;
         if(index >=0 && index < 24){
             bits[index]='1';
         }
@@ -50,7 +53,9 @@ function coordsToBinary(coords) {
 
 function encodeGrid(){
     let input = document.getElementById('coordInput').value.trim();
-    if(!input) { alert('Enter coordinates'); return; }
+    let expectedCount = parseInt(document.getElementById('expectedCount').value);
+    if(!input){ alert('Enter coordinates'); return; }
+    if(isNaN(expectedCount) || expectedCount<1 || expectedCount>25){ alert('Enter valid expected number'); return; }
 
     let coordPairs = input.split(/\s+/).map(s=>s.split(','));
     for(let i=0;i<coordPairs.length;i++){
@@ -65,27 +70,30 @@ function encodeGrid(){
     let lo = value24 % BASE;
     let encodedChars = String.fromCharCode(START+hi)+String.fromCharCode(START+lo);
     document.getElementById('encodedOutput').innerText = encodedChars;
+
+    // Store expected coordinate count for decoding
+    window.expectedCount = expectedCount;
 }
 
-function decodeChars(){
+function decodeGrid(){
     let chars = document.getElementById('charInput').value;
-    let number = parseInt(document.getElementById('numberInput').value);
+    let decodedCount = parseInt(document.getElementById('decodedCount').value);
     if(chars.length!==2){ alert('Enter exactly 2 characters'); return; }
-    if(isNaN(number)||(number!==8&&number!==9)){ alert('Enter number 8 or 9'); return; }
+    if(isNaN(decodedCount) || decodedCount<0 || decodedCount>25){ alert('Enter valid decoded count'); return; }
 
     let hi = chars.charCodeAt(0)-START;
     let lo = chars.charCodeAt(1)-START;
     let value24 = hi*BASE + lo;
     let bits = value24.toString(2).padStart(24,'0');
 
-    // bottom-right square (index 24) determined by number logic
-    let onesCount = (bits.match(/1/g)||[]).length;
-    bits += ((onesCount===7 && number===8)||(onesCount===8 && number===9)) ? '1' : '0';
+    // bottom-right square: black if decodedCount < expectedCount
+    let bottomRight = (decodedCount < window.expectedCount) ? '1' : '0';
+    bits += bottomRight;
 
-    let grid = '';
-    for(let y=0;y<5;y++){
-        for(let x=0;x<5;x++){
-            let index = y*5 + x;
+    let grid='';
+    for(let y=0;y<GRID_HEIGHT;y++){
+        for(let x=0;x<GRID_WIDTH;x++){
+            let index = y*GRID_WIDTH + x;
             grid += (bits[index]==='1'?BLACK:WHITE);
         }
         grid += '\n';
@@ -96,9 +104,7 @@ function decodeChars(){
 function copyEncoded(){
     let span = document.getElementById('encodedOutput');
     let text = span.innerText;
-    navigator.clipboard.writeText(text).then(()=>{
-        alert('Copied: ' + text);
-    });
+    navigator.clipboard.writeText(text).then(()=>{ alert('Copied: ' + text); });
 }
 </script>
 </body>
