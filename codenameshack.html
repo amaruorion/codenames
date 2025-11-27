@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Codenames 5x5 Grid Encoder</title>
+<style>
+body { font-family: Arial, sans-serif; margin: 30px; }
+input, button { padding: 5px; margin: 5px; }
+span { font-size: 24px; line-height: 1.2em; }
+</style>
+</head>
+<body>
+<h1>Codenames 5x5 Grid Encoder</h1>
+
+<label>Enter coordinates (x,y) separated by spaces, e.g., 0,0 2,1 4,4:</label><br>
+<input type="text" id="coordInput" placeholder="0,0 2,1 4,4"><br>
+<button onclick="encodeGrid()">Encode</button>
+<p>Encoded Characters: <span id="encodedOutput"></span></p>
+
+<label>Enter 2 CJK characters:</label><br>
+<input type="text" id="charInput" maxlength="2"><br>
+<label>Enter number (8 or 9):</label><br>
+<input type="number" id="numberInput" min="0" max="9"><br>
+<button onclick="decodeChars()">Decode</button>
+<p>Decoded Grid:</p>
+<pre id="decodedOutput"></pre>
+
+<script>
+const BASE = 4096;
+const START = 0x4E00;
+const GRID_WIDTH = 5;
+const GRID_HEIGHT = 5;
+const TOTAL_BITS = GRID_WIDTH * GRID_HEIGHT;
+const BLACK = '\u2B1B';
+const WHITE = '\u2B1C';
+
+function coordsToBinary(coords) {
+    let bits = Array(TOTAL_BITS).fill('0');
+    coords.forEach(pair => {
+        let [x,y] = pair;
+        let index = y*GRID_WIDTH + x;
+        if(index<24) bits[index] = '1';
+    });
+    return bits.join('');
+}
+
+function encodeGrid() {
+    let input = document.getElementById('coordInput').value;
+    if(!input) { alert('Enter coordinates'); return; }
+    let coordPairs = input.split(' ').map(s => s.split(',').map(Number));
+    let bitstring = coordsToBinary(coordPairs);
+    let value = parseInt(bitstring,2);
+    let hi = Math.floor(value/BASE);
+    let lo = value % BASE;
+    let encodedChars = String.fromCharCode(START+hi)+String.fromCharCode(START+lo);
+    document.getElementById('encodedOutput').innerText = encodedChars;
+}
+
+function decodeChars() {
+    let chars = document.getElementById('charInput').value;
+    let number = parseInt(document.getElementById('numberInput').value);
+    if(chars.length!==2) { alert('Enter exactly 2 characters'); return; }
+    if(isNaN(number)||(number!==8&&number!==9)) { alert('Enter number 8 or 9'); return; }
+
+    let hi = chars.charCodeAt(0)-START;
+    let lo = chars.charCodeAt(1)-START;
+    let value = hi*BASE+lo;
+    let bitstring = value.toString(2).padStart(24,'0');
+
+    let onesCount = (bitstring.match(/1/g)||[]).length;
+    if((onesCount===7 && number===8) || (onesCount===8 && number===9)) bitstring+='1';
+    else bitstring+='0';
+
+    let grid='';
+    for(let y=0;y<GRID_HEIGHT;y++){
+        for(let x=0;x<GRID_WIDTH;x++){
+            let index=y*GRID_WIDTH+x;
+            grid += (bitstring[index]==='1'?BLACK:WHITE);
+        }
+        grid+='
+';
+    }
+    document.getElementById('decodedOutput').innerText=grid;
+}
+</script>
+</body>
+</html>
