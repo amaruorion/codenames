@@ -20,6 +20,8 @@ pre { font-size: 24px; line-height: 1.2em; }
 
 <label>Enter 2 CJK characters (from encoding):</label><br>
 <input type="text" id="charInput" maxlength="2"><br>
+<label>Enter target number of black squares (8 or 9):</label><br>
+<input type="number" id="targetNum" min="1" max="25" value="8"><br>
 <button onclick="decodeGrid()">Decode</button>
 <p>Decoded Grid:</p>
 <pre id="decodedOutput"></pre>
@@ -32,7 +34,7 @@ const GRID_HEIGHT = 5;
 const BLACK = '\u2B1B';
 const WHITE = '\u2B1C';
 
-// Convert coordinates to 24-bit string, ignoring bottom-right (4,4)
+// Convert coordinates to 24-bit array, ignoring bottom-right
 function coordsToBits(coords){
     let bits = Array(24).fill('0');
     coords.forEach(([x,y])=>{
@@ -71,28 +73,35 @@ function encodeGrid(){
     let encodedChars = String.fromCharCode(START+hi) + String.fromCharCode(START+lo);
     document.getElementById('encodedOutput').innerText = encodedChars;
 
-    // Store number of coordinates for bottom-right logic
+    // Store the number of 1s for decoding
     window.lastCoordCount = coordPairs.length;
 }
 
 // Decode 2 CJK characters to 5x5 emoji grid
 function decodeGrid(){
     let chars = document.getElementById('charInput').value;
+    let targetNum = parseInt(document.getElementById('targetNum').value);
     if(chars.length!==2){ alert('Enter exactly 2 characters'); return; }
+    if(isNaN(targetNum) || targetNum<1 || targetNum>25){ alert('Enter a valid target number'); return; }
 
     let hi = chars.charCodeAt(0)-START;
     let lo = chars.charCodeAt(1)-START;
     let value24 = hi*BASE + lo;
 
+    // Reconstruct 24 bits little-endian
     let bits = [];
+    let blackCount = 0;
     for(let i=0;i<24;i++){
-        bits.push((value24 & (1<<i)) ? '1' : '0');
+        let bit = (value24 & (1<<i)) ? '1' : '0';
+        bits.push(bit);
+        if(bit==='1') blackCount++;
     }
 
-    // Bottom-right square: black if fewer coordinates than originally input
-    let bottomRight = (window.lastCoordCount < 25) ? '1' : '0';
+    // Last square: black if blackCount < targetNum
+    let bottomRight = (blackCount < targetNum) ? '1' : '0';
     bits.push(bottomRight);
 
+    // Build 5x5 grid
     let grid='';
     for(let y=0;y<GRID_HEIGHT;y++){
         for(let x=0;x<GRID_WIDTH;x++){
