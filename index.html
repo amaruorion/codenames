@@ -15,15 +15,11 @@ pre { font-size: 24px; line-height: 1.2em; }
 
 <label>Enter coordinates (x,y) separated by spaces, e.g., 0,0 4,0 3,1 0,2 1,2 0,3 2,3 1,4 2,4:</label><br>
 <input type="text" id="coordInput" placeholder="0,0 4,0 3,1 0,2 1,2 0,3 2,3 1,4 2,4" size="50"><br>
-<label>Enter expected number of coordinates:</label><br>
-<input type="number" id="expectedCount" min="1" max="25" value="25"><br>
 <button onclick="encodeGrid()">Encode</button>
 <p>Encoded Characters: <span id="encodedOutput"></span> <button onclick="copyEncoded()">Copy</button></p>
 
 <label>Enter 2 CJK characters (from encoding):</label><br>
 <input type="text" id="charInput" maxlength="2"><br>
-<label>Enter number of coordinates decoded:</label><br>
-<input type="number" id="decodedCount" min="0" max="25" value="0"><br>
 <button onclick="decodeGrid()">Decode</button>
 <p>Decoded Grid:</p>
 <pre id="decodedOutput"></pre>
@@ -53,10 +49,7 @@ function coordsToBinary(coords) {
 
 function encodeGrid(){
     let input = document.getElementById('coordInput').value.trim();
-    let expectedCount = parseInt(document.getElementById('expectedCount').value);
     if(!input){ alert('Enter coordinates'); return; }
-    if(isNaN(expectedCount) || expectedCount<1 || expectedCount>25){ alert('Enter valid expected number'); return; }
-
     let coordPairs = input.split(/\s+/).map(s=>s.split(','));
     for(let i=0;i<coordPairs.length;i++){
         if(coordPairs[i].length!==2 || isNaN(coordPairs[i][0]) || isNaN(coordPairs[i][1])){
@@ -66,28 +59,29 @@ function encodeGrid(){
 
     let bits = coordsToBinary(coordPairs);
     let value24 = parseInt(bits,2);
-    let hi = Math.floor(value24/BASE);
+    let hi = Math.floor(value24 / BASE);
     let lo = value24 % BASE;
-    let encodedChars = String.fromCharCode(START+hi)+String.fromCharCode(START+lo);
+    let encodedChars = String.fromCharCode(START+hi) + String.fromCharCode(START+lo);
     document.getElementById('encodedOutput').innerText = encodedChars;
 
-    // Store expected coordinate count for decoding
-    window.expectedCount = expectedCount;
+    // Store count of coordinates for bottom-right logic
+    window.lastCoordCount = coordPairs.length;
 }
 
 function decodeGrid(){
     let chars = document.getElementById('charInput').value;
-    let decodedCount = parseInt(document.getElementById('decodedCount').value);
     if(chars.length!==2){ alert('Enter exactly 2 characters'); return; }
-    if(isNaN(decodedCount) || decodedCount<0 || decodedCount>25){ alert('Enter valid decoded count'); return; }
 
     let hi = chars.charCodeAt(0)-START;
     let lo = chars.charCodeAt(1)-START;
-    let value24 = hi*BASE + lo;
-    let bits = value24.toString(2).padStart(24,'0');
 
-    // bottom-right square: black if decodedCount < expectedCount
-    let bottomRight = (decodedCount < window.expectedCount) ? '1' : '0';
+    // Treat each character as 12 bits to preserve exact alignment
+    let hiBits = hi.toString(2).padStart(12,'0');
+    let loBits = lo.toString(2).padStart(12,'0');
+    let bits = hiBits + loBits; // exact 24 bits
+
+    // Bottom-right logic: keep as before (you can customize)
+    let bottomRight = (window.lastCoordCount < 25) ? '1' : '0';
     bits += bottomRight;
 
     let grid='';
